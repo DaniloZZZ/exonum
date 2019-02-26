@@ -1,4 +1,3 @@
-// Copyright 2019 The Exonum Team
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,7 +15,7 @@
 
 use exonum::{
     api::{self, ServiceApiBuilder, ServiceApiState},
-    blockchain::{self, BlockProof, TransactionMessage},
+    blockchain::{self, BlockProof, TxLocation, TransactionMessage},
     crypto::{Hash, PublicKey},
     explorer::BlockchainExplorer,
     helpers::Height,
@@ -41,13 +40,36 @@ pub struct WalletProof {
     pub to_wallet: MapProof<PublicKey, Wallet>,
 }
 
+/// a heigh - transaction pair
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TransactionWithHeigth {
+    /// Transaction
+    pub transaction: TransactionMessage,
+    /// Height of block where it was accepted
+    pub heigth: u32,
+}
+/// Loc
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Loc {
+    /// Height of block where it was accepted
+    pub location: u64,
+}
+/// a heigh - txHash pair
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TxHashWithHeigth {
+    /// Transaction
+    pub tx_hash: Hash,
+    /// Height of block where it was accepted
+    pub heigth: u32,
+}
+
 /// Wallet history.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct WalletHistory {
+pub struct WalletHistory{
     /// Proof of the list of transaction hashes.
     pub proof: ListProof<Hash>,
     /// List of above transactions.
-    pub transactions: Vec<TransactionMessage>,
+    pub transactions: Vec<u64>
 }
 
 /// Wallet information.
@@ -59,6 +81,20 @@ pub struct WalletInfo {
     pub wallet_proof: WalletProof,
     /// History of the appropriate wallet.
     pub wallet_history: Option<WalletHistory>,
+}
+
+/// EchoQuery
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EchoQuery{
+    /// Public key of the queried wallet.
+    pub q: String,
+}
+
+/// Echo
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Echo{
+    /// Answer
+    pub answer: String,
 }
 
 /// Public service API description.
@@ -99,7 +135,14 @@ impl PublicApi {
 
             let transactions = history
                 .iter()
-                .map(|record| explorer.transaction_without_proof(&record).unwrap())
+                .map(|record| -> u64{
+                    let maybe_tx = explorer.transaction(&record);
+
+                    match maybe_tx{
+                        None => 0,
+                        Some(x) => x.as_committed().unwrap().location().block_height().0
+                    }
+                })
                 .collect::<Vec<_>>();
 
             WalletHistory {
@@ -116,9 +159,23 @@ impl PublicApi {
     }
 
     /// Wires the above endpoint to public scope of the given `ServiceApiBuilder`.
+    /// Test endpoint
+    pub fn echo(state: &ServiceApiState, query: EchoQuery) -> api::Result<Echo> {
+        println!("Req");
+        let pong = "pong".to_string();
+
+        Ok(Echo{
+            answer:[query.q, pong].join("-"),
+            //answer:"pong".to_string(),
+        })
+    }
+
+    /// Wires the above endpoint to public scope of the given `ServiceApiBuilder`.
     pub fn wire(builder: &mut ServiceApiBuilder) {
+        println!("Hello");
         builder
             .public_scope()
-            .endpoint("v1/wallets/info", Self::wallet_info);
+            .endpoint("v1/wallets/info", Self::wallet_info)
+            .endpoint("v1/test", Self::echo);
     }
 }
