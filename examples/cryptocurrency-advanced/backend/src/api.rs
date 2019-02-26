@@ -42,34 +42,27 @@ pub struct WalletProof {
 
 /// a heigh - transaction pair
 #[derive(Debug, Serialize, Deserialize)]
-pub struct TransactionWithHeigth {
+pub struct TxHeightResult{
     /// Transaction
-    pub transaction: TransactionMessage,
-    /// Height of block where it was accepted
-    pub heigth: u32,
+    pub transactions: Vec<TxHashWithHeigth>,
 }
-/// Loc
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Loc {
-    /// Height of block where it was accepted
-    pub location: u64,
-}
+
 /// a heigh - txHash pair
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TxHashWithHeigth {
     /// Transaction
     pub tx_hash: Hash,
     /// Height of block where it was accepted
-    pub heigth: u32,
+    pub heigth: u64,
 }
 
 /// Wallet history.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct WalletHistory{
+pub struct WalletHistory {
     /// Proof of the list of transaction hashes.
     pub proof: ListProof<Hash>,
     /// List of above transactions.
-    pub transactions: Vec<u64>
+    pub transactions: Vec<TransactionMessage>,
 }
 
 /// Wallet information.
@@ -81,20 +74,6 @@ pub struct WalletInfo {
     pub wallet_proof: WalletProof,
     /// History of the appropriate wallet.
     pub wallet_history: Option<WalletHistory>,
-}
-
-/// EchoQuery
-#[derive(Debug, Serialize, Deserialize)]
-pub struct EchoQuery{
-    /// Public key of the queried wallet.
-    pub q: String,
-}
-
-/// Echo
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Echo{
-    /// Answer
-    pub answer: String,
 }
 
 /// Public service API description.
@@ -135,14 +114,7 @@ impl PublicApi {
 
             let transactions = history
                 .iter()
-                .map(|record| -> u64{
-                    let maybe_tx = explorer.transaction(&record);
-
-                    match maybe_tx{
-                        None => 0,
-                        Some(x) => x.as_committed().unwrap().location().block_height().0
-                    }
-                })
+                .map(|record| explorer.transaction_without_proof(&record).unwrap())
                 .collect::<Vec<_>>();
 
             WalletHistory {
@@ -157,16 +129,34 @@ impl PublicApi {
             wallet_history,
         })
     }
+    /// Return array of tx-height
+    pub fn tx_height(state: &ServiceApiState, query: WalletQuery) -> api::Result<TxHeightResult> {
+        let snapshot = state.snapshot();
+        let general_schema = blockchain::Schema::new(&snapshot);
+        let currency_schema = Schema::new(&snapshot);
 
-    /// Wires the above endpoint to public scope of the given `ServiceApiBuilder`.
-    /// Test endpoint
-    pub fn echo(state: &ServiceApiState, query: EchoQuery) -> api::Result<Echo> {
-        println!("Req");
-        let pong = "pong".to_string();
+        let explorer = BlockchainExplorer::new(state.blockchain());
+        let history = currency_schema.wallet_history(&query.pub_key);
 
-        Ok(Echo{
-            answer:[query.q, pong].join("-"),
-            //answer:"pong".to_string(),
+        let transactions = history
+            .iter()
+            .map(|record| -> TxHashWithHeigth{
+                let maybe_tx = explorer.transaction(&record);
+                // Don't panic if the tx is not yet committed
+                // Return 0 instead
+                let heigth =  match maybe_tx{
+                    None => 0,
+                    Some(x) => x.as_committed().unwrap().location().block_height().0
+                };
+                TxHashWithHeigth{
+                    heigth: heigth,
+                    tx_hash: record,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        Ok(TxHeightResult{
+            transactions,
         })
     }
 
@@ -176,6 +166,6 @@ impl PublicApi {
         builder
             .public_scope()
             .endpoint("v1/wallets/info", Self::wallet_info)
-            .endpoint("v1/test", Self::echo);
+            .endpoint("v1/tx_height", Self::tx_height);
     }
 }
