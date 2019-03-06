@@ -18,8 +18,9 @@ use exonum::{
     crypto::{Hash, PublicKey},
     storage::{Fork, ProofListIndex, ProofMapIndex, Snapshot},
 };
+use std::cmp::Ordering;
 
-use crate::{wallet::Wallet, INITIAL_BALANCE};
+use crate::{wallet::Wallet, multisig::TxSign, INITIAL_BALANCE};
 
 /// Database schema for the cryptocurrency.
 #[derive(Debug)]
@@ -57,6 +58,19 @@ where
         self.wallets().get(pub_key)
     }
 
+    /// Returns proof map index with  transaction tx signs
+    pub fn txsigns(&self) -> ProofListIndex<&T, TxSign> {
+        ProofListIndex::new("cryptocurrency.txsigns", &self.view)
+    }
+
+    /// Returns proof map index with  transaction tx signs
+    pub fn multi_sigs_of_tx(&self, tx_hash:Hash) -> Vec<TxSign> {
+        self.txsigns()
+            .iter()
+            .filter( |sign| sign.tx_hash == tx_hash )
+            .collect()
+    }
+
     /// Returns the state hash of cryptocurrency service.
     pub fn state_hash(&self) -> Vec<Hash> {
         vec![self.wallets().merkle_root()]
@@ -65,6 +79,10 @@ where
 
 /// Implementation of mutable methods.
 impl<'a> Schema<&'a mut Fork> {
+    /// Return mutable list fo txsigns
+    pub fn txsigns_mut(&mut self) -> ProofListIndex<&mut Fork, TxSign> {
+        ProofListIndex::new("cryptocurrency.txsigns", &mut self.view)
+    }
     /// Returns mutable `ProofMapIndex` with wallets.
     pub fn wallets_mut(&mut self) -> ProofMapIndex<&mut Fork, PublicKey, Wallet> {
         ProofMapIndex::new("cryptocurrency.wallets", &mut self.view)
@@ -106,6 +124,17 @@ impl<'a> Schema<&'a mut Fork> {
         self.wallets_mut().put(&wallet.pub_key, wallet.clone());
     }
 
+    /// Create new txsign
+    pub fn create_txsign(&mut self, tx_hash: Hash){
+        let mut list = self.txsigns_mut();
+        println!("txsingn before create len {}",list.len());
+        list.push(TxSign{
+                tx_hash
+            });
+        println!("txsingn before create len {}",list.len());
+    }
+
+
     /// Create new wallet and append first record to its history.
     pub fn create_wallet(&mut self, key: &PublicKey, name: &str, transaction: &Hash) {
         let wallet = {
@@ -116,4 +145,19 @@ impl<'a> Schema<&'a mut Fork> {
         };
         self.wallets_mut().put(key, wallet);
     }
+    /*
+    /// Returns mutable `ProofMapIndex` with txsigns
+    pub fn txsigns_mut(&mut self) -> ProofMapIndex<&mut Fork, PublicKey, Wallet> {
+        ProofMapIndex::new("cryptocurrency.txsigns", &mut self.view)
+    }
+    /// Create new sign of transaction
+    pub fn create_txsign(&mut self, key: &PublicKey, name: &str, transaction: &Hash) {
+        let txsign= {
+            history.push(*transaction);
+            let history_hash = history.merkle_root();
+            Wallet::new(key, name, INITIAL_BALANCE, history.len(), &history_hash)
+        };
+        self.txsigns_mut().put(key, wallet);
+    }
+    */
 }
