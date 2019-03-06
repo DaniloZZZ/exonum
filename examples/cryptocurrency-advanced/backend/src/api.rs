@@ -22,7 +22,7 @@ use exonum::{
     storage::{ListProof, MapProof},
 };
 
-use crate::{wallet::Wallet, Schema, CRYPTOCURRENCY_SERVICE_ID};
+use crate::{wallet::Wallet, multisig::TxSign, Schema, CRYPTOCURRENCY_SERVICE_ID};
 
 /// Describes the query parameters for the `get_wallet` endpoint.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -38,6 +38,13 @@ pub struct WalletProof {
     pub to_table: MapProof<Hash, Hash>,
     /// Proof of the specific wallet in this table.
     pub to_wallet: MapProof<PublicKey, Wallet>,
+}
+
+/// a list of txsigns
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TxSignsResult{
+    /// signs
+    pub txsigns: Vec<TxSign>,
 }
 
 /// a heigh - transaction pair
@@ -129,6 +136,18 @@ impl PublicApi {
             wallet_history,
         })
     }
+    /// Return array of tx-signs
+    pub fn txsigns(state: &ServiceApiState,query: WalletQuery) -> api::Result<TxSignsResult> {
+        let snapshot = state.snapshot();
+        let currency_schema = Schema::new(&snapshot);
+        println!("getting txsigns");
+        let txsigns  = currency_schema.txsigns();
+        println!("txsings len {}",txsigns.len());
+
+        let txsigns = txsigns.iter().collect::<Vec<_>>();
+        Ok(TxSignsResult{txsigns})
+    }
+
     /// Return array of tx-height
     pub fn tx_height(state: &ServiceApiState, query: WalletQuery) -> api::Result<TxHeightResult> {
         let snapshot = state.snapshot();
@@ -166,6 +185,7 @@ impl PublicApi {
         builder
             .public_scope()
             .endpoint("v1/wallets/info", Self::wallet_info)
-            .endpoint("v1/tx_height", Self::tx_height);
+            .endpoint("v1/tx_height", Self::tx_height)
+            .endpoint("v1/txsigns", Self::txsigns);
     }
 }
