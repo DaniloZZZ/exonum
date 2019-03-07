@@ -55,3 +55,23 @@ message Wallet {
   // `Hash` of the transactions history.
   exonum.Hash history_hash = 5;
 }
+
+// Transfer multisig
+message TransferMultisig{
+  // `PublicKey` of receiver's wallet.
+  exonum.PublicKey to = 1;
+  // Amount of currency to transfer.
+  uint64 amount = 2;
+  // Auxiliary number to guarantee non-idempotence of transactions.
+  uint64 seed = 3;
+  // approvers
+  repeated exonum.PublicKey approvers = 4;
+}
+
+// Create wallet with the given `name`.
+message TxSign{
+  // Hash of tx to sign
+  exonum.Hash tx_hash = 1;
+  // Author of tx
+  exonum.PublicKey signer = 2;
+}

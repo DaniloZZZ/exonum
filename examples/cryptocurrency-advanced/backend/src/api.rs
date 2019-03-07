@@ -19,6 +19,7 @@ use exonum::{
     crypto::{Hash, PublicKey},
     explorer::BlockchainExplorer,
     helpers::Height,
+    messages::Message, 
     storage::{ListProof, MapProof},
 };
 

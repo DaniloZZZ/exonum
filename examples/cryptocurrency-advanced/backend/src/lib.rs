@@ -35,6 +35,7 @@ pub mod proto;
 pub mod schema;
 pub mod transactions;
 pub mod wallet;
+pub mod multisig;
 
 use exonum::{
     api::ServiceApiBuilder,

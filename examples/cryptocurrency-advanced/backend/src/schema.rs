@@ -20,7 +20,7 @@ use exonum::{
 };
 use std::cmp::Ordering;
 
-use crate::{wallet::Wallet, multisig::TxSign, INITIAL_BALANCE};
+use crate::{wallet::Wallet, multisig::{TxSign, TransferMultisig},INITIAL_BALANCE};
 
 /// Database schema for the cryptocurrency.
 #[derive(Debug)]
@@ -57,6 +57,7 @@ where
     pub fn wallet(&self, pub_key: &PublicKey) -> Option<Wallet> {
         self.wallets().get(pub_key)
     }
+    /// returns multisig txs
 
     /// Returns proof map index with  transaction tx signs
     pub fn txsigns(&self) -> ProofListIndex<&T, TxSign> {
@@ -79,6 +80,15 @@ where
 
 /// Implementation of mutable methods.
 impl<'a> Schema<&'a mut Fork> {
+    /// Return multisig transactions
+    pub fn multisigs_mut(&mut self) -> ProofMapIndex<&mut Fork, Hash, TransferMultisig> {
+        ProofMapIndex::new("cryptocurrency.multisigs", &mut self.view)
+    }
+    /// Return a multisig tx
+    pub fn get_multisig_mut(&mut self, hash: &Hash)->Option<TransferMultisig>{
+        self.multisigs_mut().get(hash)
+    }
+
     /// Return mutable list fo txsigns
     pub fn txsigns_mut(&mut self) -> ProofListIndex<&mut Fork, TxSign> {
         ProofListIndex::new("cryptocurrency.txsigns", &mut self.view)
@@ -125,11 +135,12 @@ impl<'a> Schema<&'a mut Fork> {
     }
 
     /// Create new txsign
-    pub fn create_txsign(&mut self, tx_hash: Hash){
+    pub fn create_txsign(&mut self, tx_hash: Hash, signer: PublicKey){
         let mut list = self.txsigns_mut();
         println!("txsingn before create len {}",list.len());
         list.push(TxSign{
-                tx_hash
+                tx_hash,
+                signer
             });
         println!("txsingn before create len {}",list.len());
     }

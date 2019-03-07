@@ -25,7 +25,12 @@ use exonum::{
 };
 
 use super::proto;
-use crate::{schema::Schema, CRYPTOCURRENCY_SERVICE_ID};
+use crate::{schema::Schema,
+multisig::{
+    TxSign,
+    TransferMultisig
+},
+CRYPTOCURRENCY_SERVICE_ID};
 
 const ERROR_SENDER_SAME_AS_RECEIVER: u8 = 0;
 
@@ -108,6 +113,10 @@ pub enum WalletTransactions {
     Issue(Issue),
     /// CreateWallet tx.
     CreateWallet(CreateWallet),
+    /// Sign tx
+    TxSign(TxSign),
+    /// txmsig
+    TransferMultisig(TransferMultisig),
 }
 
 impl CreateWallet {

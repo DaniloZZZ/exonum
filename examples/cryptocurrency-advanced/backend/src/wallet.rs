@@ -28,6 +28,8 @@ pub struct Wallet {
     pub name: String,
     /// Current balance of the wallet.
     pub balance: u64,
+    ///// Current pending balance.
+    //pub pending_balance: u64,
     /// Length of the transactions history.
     pub history_len: u64,
     /// `Hash` of the transactions history.
