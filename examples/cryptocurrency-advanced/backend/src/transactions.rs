@@ -61,7 +61,20 @@ pub enum Error {
     /// Can be emitted by `Transfer`.
     #[fail(display = "Insufficient currency amount")]
     InsufficientCurrencyAmount = 3,
+
+    /// Multisignature tx not found
+    ///
+    /// Can be emitted by `TxSign`.
+    #[fail(display = "Multisignature tx not found")]
+    MultisigNotFound = 4,
+
+    /// Signer is not authorised to approve multisig
+    ///
+    /// Can be emitted by `TxSign`.
+    #[fail(display = "Signer is not authorised")]
+    MultisigWrongApprover = 5,
 }
+
 
 impl From<Error> for ExecutionError {
     fn from(value: Error) -> ExecutionError {
@@ -206,9 +219,11 @@ impl Transaction for CreateWallet {
 
         if schema.wallet(pub_key).is_none() {
             let name = &self.name;
+            println!("created wallet {:?}", pub_key);
             schema.create_wallet(pub_key, name, &hash);
             Ok(())
         } else {
+            println!("Wallet exists");
             Err(Error::WalletAlreadyExists)?
         }
     }
