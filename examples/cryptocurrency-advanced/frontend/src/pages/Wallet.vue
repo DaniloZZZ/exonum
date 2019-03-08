@@ -99,6 +99,52 @@
               </form>
             </div>
           </div>
+
+          <div class="card mt-5">
+            <div class="card-header">Sign multisig tx</div>
+            <div class="card-body">
+              <form @submit.prevent="msig_transfer">
+                <div class="form-group">
+                  <label>Receiver:</label>
+                  <input v-model="receiver" type="text" class="form-control" placeholder="Enter receiver" required>
+                </div>
+                <div class="form-group">
+                  <label>Amount:</label>
+                  <input v-model="amount" type="text" class="form-control" placeholder="Enter amount" required>
+                </div>
+                <div class="form-group">
+                  <label>Approver1:</label>
+                  <input v-model="approver1" type="text" class="form-control" placeholder="approver1" required>
+                </div>
+                <div class="form-group">
+                  <label>Approver2:</label>
+                  <input v-model="approver2" type="text" class="form-control" placeholder="approver2" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Sign tx</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="card mt-5">
+            <div class="card-header">Sign multisig tx</div>
+            <div class="card-body">
+              <form @submit.prevent="sign_msig">
+                <div class="form-group">
+                  <label>Hash:</label>
+                  <input v-model="hash" type="text" class="form-control" placeholder="Enter hash" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Sign tx</button>
+              </form>
+            </div>
+          </div>
+          <div class="card mt-5">
+            <div class="card-header">Test</div>
+            <div class="card-body">
+              <form @submit.prevent="test_real">
+                <button type="submit" class="btn btn-primary">test</button>
+              </form>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -202,6 +248,40 @@
           this.transactions = data.transactions
           this.isSpinnerVisible = false
           this.$notify('success', 'Transfer transaction has been written into the blockchain')
+        } catch (error) {
+          this.isSpinnerVisible = false
+          this.$notify('error', error.toString())
+        }
+      },
+
+      async sign_msig() {
+
+        this.isSpinnerVisible = true
+
+        const seed = this.$blockchain.generateSeed()
+
+        try {
+          await this.$blockchain.sign_msig(this.keyPair, this.hash, seed)
+          this.isSpinnerVisible = false
+          this.$notify('success', 'You have successfully signed the tx')
+        } catch (error) {
+          this.isSpinnerVisible = false
+          this.$notify('error', error.toString())
+        }
+      },
+      async test_real(){
+          await this.$blockchain.test_real();
+      },
+      async msig_transfer() {
+
+        //this.isSpinnerVisible = true
+
+        const seed = this.$blockchain.generateSeed()
+
+        try {
+          await this.$blockchain.msig_transfer(this.keyPair, this.receiver, this.amount, this.approver1, this.approver2, seed)
+          this.isSpinnerVisible = false
+          this.$notify('success', 'You have successfully signed the tx')
         } catch (error) {
           this.isSpinnerVisible = false
           this.$notify('error', error.toString())

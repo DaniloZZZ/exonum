@@ -8,6 +8,8 @@ const SERVICE_ID = 128
 const TX_TRANSFER_ID = 0
 const TX_ISSUE_ID = 1
 const TX_WALLET_ID = 2
+const TX_SIGN_MSIG_ID = 3
+const TX_TRANSFER_MSIG_ID = 4
 const TABLE_INDEX = 0
 const Wallet = Exonum.newType(proto.exonum.examples.cryptocurrency_advanced.Wallet)
 
@@ -86,6 +88,100 @@ module.exports = {
 
         // Send transaction into blockchain
         return transaction.send(TRANSACTION_URL, data, keyPair.secretKey)
+      },
+
+      sign_msig(keyPair, hash, seed) {
+        // Describe transaction
+        const transaction = Exonum.newTransaction({
+            author: keyPair.publicKey,
+            service_id: SERVICE_ID,
+            message_id: TX_SIGN_MSIG_ID,
+            schema: proto.exonum.examples.cryptocurrency_advanced.TxSign
+        })
+        console.log('hash',hash)
+
+        // Transaction data
+        const data = {
+          tx_hash: { data: Exonum.hexadecimalToUint8Array(hash) },
+          signer: { data: Exonum.hexadecimalToUint8Array(keyPair.publicKey) },
+        }
+
+        // Send transaction into blockchain
+        return transaction.send(TRANSACTION_URL, data, keyPair.secretKey)
+      },
+
+      msig_transfer(keyPair,receiver,amount, approver1, approver2, seed) {
+        // Describe transaction
+        const transaction = Exonum.newTransaction({
+            author: keyPair.publicKey,
+            service_id: SERVICE_ID,
+            message_id: TX_TRANSFER_MSIG_ID,
+            schema: proto.exonum.examples.cryptocurrency_advanced.TransferMultisig,
+        })
+        console.log('receiver',receiver)
+        console.log('amount',amount)
+        console.log('approvers',approver1, approver2)
+        const approvers = [approver1,approver2].map((a)=>{
+            return { data:Exonum.hexadecimalToUint8Array(a) }
+        });
+
+        // Transaction data
+        const data = {
+            to: { data: Exonum.hexadecimalToUint8Array(receiver) },
+            from: { data:Exonum.hexadecimalToUint8Array(keyPair.publicKey) },
+            amount: amount,
+            approvers: approvers,
+            seed:seed
+        };
+        console.log("data",data);
+
+        // Send transaction into blockchain
+        return transaction.send(TRANSACTION_URL, data, keyPair.secretKey)
+      },
+      test_real(){
+        const names =[ 'sender','receiver','approver','approver']
+        const accounts = names.map((name)=>{
+          const keyp = this.generateKeyPair()
+          return { 'name':name,'keys':keyp }
+        });
+        const promises =accounts.map((acc)=>{
+          this.createWallet(acc.keys,acc.name)
+        });
+        return Promise.all(promises).then(values=>{
+          const amountToAdd = '50'
+          const seed = '9935800087578782468'
+
+          function delay(ms) {
+              return new Promise((resolve, reject) => {
+                    setTimeout(resolve, ms);
+                  });
+          }
+          // Add funds
+          const addp = this.addFunds(accounts[0].keys, amountToAdd, seed)
+          // Create a multisig
+          const recv  = accounts[1].keys.publicKey
+          console.log("keys of receiver",accounts[1].keys)
+          console.log("keys of sender",accounts[0].keys)
+          const app1 = accounts[2].keys.publicKey
+          const app2 = accounts[3].keys.publicKey
+          const msigp = this.msig_transfer(accounts[0].keys, recv, amountToAdd, app1, app2, seed)
+          return addp.then(txhash=>{
+            console.log("created wallet tx:",txhash)
+            console.log("making msig")
+            return msigp
+          }).then(delay(100)).then(txhash=>{
+            const sign1p = this.sign_msig(accounts[2].keys,txhash,0);
+            const sign2p = this.sign_msig(accounts[3].keys,txhash,0);
+            return sign1p.then(delay(100)).then(sign2p).then(()=>{
+              console.log("signed the tx, checking walled balance")
+              return this.getWallet(accounts[0].keys.publicKey).then( (data)=>{
+                console.log('data',data)
+              });
+            });
+          });
+
+        });
+
       },
 
       transfer(keyPair, receiver, amountToTransfer, seed) {
