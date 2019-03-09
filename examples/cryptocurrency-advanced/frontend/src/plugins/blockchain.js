@@ -128,7 +128,7 @@ module.exports = {
         // Transaction data
         const data = {
             to: { data: Exonum.hexadecimalToUint8Array(receiver) },
-            from: { data:Exonum.hexadecimalToUint8Array(keyPair.publicKey) },
+          //from: { data:Exonum.hexadecimalToUint8Array(keyPair.publicKey) },
             amount: amount,
             approvers: approvers,
             seed:seed
