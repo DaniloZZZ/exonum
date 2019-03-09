@@ -35,7 +35,7 @@ pub struct TransferMultisig {
     /// `PublicKey` of receiver's wallet.
     pub to: PublicKey,
     /// `PublicKey` of senders's wallet.
-    pub from: PublicKey,
+    //pub from: PublicKey,
     /// approvers
     pub approvers: Vec<PublicKey>,
     /// Amount of currency to transfer.
@@ -93,52 +93,64 @@ impl Transaction for TxSign {
         println!("excec with for hash {}",self.tx_hash);
         let signer = context.author();
         println!("excec from {}",signer);
+
+        let sender_key: PublicKey;
         let fork  = context.fork();
-        // Getting multisig by hash
-        let mut schema = Schema::new(fork);
-        let msig = schema.multisigs_mut().get(&self.tx_hash);
-        if msig.is_none(){
-            println!("multisignature tx not found for hash {}",self.tx_hash);
-            Err(Error::MultisigNotFound)?
-        }
-        let msig = msig.unwrap();
-        println!("getting approvers");
-        let approvers = msig.approvers;
-        println!("approvers: {:?}",approvers);
-        //
-        // An attempt to get author of tx just from raw transaction.
-        /*
-        let msig_message = fork.get("core.transactions",self.tx_hash.to_hex().as_bytes()).unwrap();
-        let msig  = Message::from_raw_buffer(msig_message).unwrap().signed_message();
-        let sender = msig.author();
-        */
+        let core_schema = blockchain::Schema::new(fork);
+        //let msig_message = fork.get("core.transactions",self.tx_hash.to_hex().as_bytes()).unwrap();
+        //let msig  = Message::from_raw_buffer(msig_message).unwrap().signed_message();
+        match core_schema.transactions().get(&self.tx_hash){
+            Some(msig)=> {
+                sender_key = msig.author();
+                println!("sender key:{}",sender_key);
 
-        let sender = schema.wallet(&msig.from).ok_or(Error::SenderNotFound)?;
-        let receiver = schema.wallet(&msig.to).ok_or(Error::ReceiverNotFound)?;
-        println!("sender: {:?} receiver: {:?}",sender,receiver);
+                // Getting multisig by hash
+                let mut schema = Schema::new(context.fork());
+                let msig = match schema.multisigs_mut().get(&self.tx_hash){
+                    Some(m)=>m,
+                    _ => {
+                        println!("multisignature tx not found for hash {}",self.tx_hash);
+                        return Err(ExecutionError::with_description(31, "multisig not found"));
+                    }
+                };
+                println!("getting approvers");
+                let approvers = msig.approvers;
+                println!("approvers: {:?}",approvers);
+                let receiver = schema.wallet(&msig.to).ok_or(Error::ReceiverNotFound)?;
+                //
+                // An attempt to get author of tx just from raw transaction.
+                // 
 
-        if sender.balance < msig.amount {
-            Err(Error::InsufficientCurrencyAmount)?
-        }
-        if approvers.contains(&signer){
-            let signs = schema.multi_sigs_of_tx(self.tx_hash);
-            println!("signs of {:?}: {:?}",self.tx_hash, signs);
-            if approvers.len()>=(signs.len()-1){
-                println!("all approvers signed, making the tx");
-                schema.decrease_wallet_balance(sender, msig.amount, &self.tx_hash);
-                schema.increase_wallet_balance(receiver, msig.amount, &self.tx_hash);
+                let sender = schema.wallet(&sender_key).ok_or(Error::SenderNotFound)?;
+                println!("sender: {:?} receiver: {:?}",sender,receiver);
+
+                if sender.balance < msig.amount {
+                    Err(Error::InsufficientCurrencyAmount)?
+                }
+                if approvers.contains(&signer){
+                    let signs = schema.multi_sigs_of_tx(self.tx_hash);
+                    println!("signs of {:?}: {:?}",self.tx_hash, signs);
+                    if approvers.len()>=(signs.len()-1){
+                        println!("all approvers signed, making the tx");
+                        schema.decrease_wallet_balance(sender, msig.amount, &self.tx_hash);
+                        schema.increase_wallet_balance(receiver, msig.amount, &self.tx_hash);
+                    }
+                }
+                else{
+                    Err(Error::MultisigWrongApprover)?
+                }
+
+                println!("create txsign");
+                schema.create_txsign(self.tx_hash,signer);
+                let signs = schema.multi_sigs_of_tx(self.tx_hash);
+                println!("signs {:?}",signs);
+
+                Ok(())
+            }
+            _ =>{
+                println!("transaction not found");
+                Err(ExecutionError::with_description(30,"multisig not found"))
             }
         }
-        else{
-            Err(Error::MultisigWrongApprover)?
-        }
-
-        println!("create txsign");
-        schema.create_txsign(self.tx_hash,signer);
-        let signs = schema.multi_sigs_of_tx(self.tx_hash);
-        println!("signs {:?}",signs);
-
-        Ok(())
     }
 }
-
