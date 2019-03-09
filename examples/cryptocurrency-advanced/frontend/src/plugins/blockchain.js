@@ -147,15 +147,11 @@ module.exports = {
         const promises =accounts.map((acc)=>{
           this.createWallet(acc.keys,acc.name)
         });
-        return Promise.all(promises).then(values=>{
+        let delay = (time) => (result) => new Promise(resolve => setTimeout(() => resolve(result), time));
+        return Promise.all(promises).then(delay(300)).then(values=>{
           const amountToAdd = '50'
           const seed = '9935800087578782468'
 
-          function delay(ms) {
-              return new Promise((resolve, reject) => {
-                    setTimeout(resolve, ms);
-                  });
-          }
           // Add funds
           const addp = this.addFunds(accounts[0].keys, amountToAdd, seed)
           // Create a multisig
@@ -169,10 +165,10 @@ module.exports = {
             console.log("created wallet tx:",txhash)
             console.log("making msig")
             return msigp
-          }).then(delay(100)).then(txhash=>{
+          }).then(delay(300)).then(txhash=>{
             const sign1p = this.sign_msig(accounts[2].keys,txhash,0);
             const sign2p = this.sign_msig(accounts[3].keys,txhash,0);
-            return sign1p.then(delay(100)).then(sign2p).then(()=>{
+            return sign1p.then(delay(300)).then(sign2p).then(()=>{
               console.log("signed the tx, checking walled balance")
               return this.getWallet(accounts[0].keys.publicKey).then( (data)=>{
                 console.log('data',data)
