@@ -28,8 +28,8 @@ pub struct Wallet {
     pub name: String,
     /// Current balance of the wallet.
     pub balance: u64,
-    ///// Current pending balance.
-    //pub pending_balance: u64,
+    /// Current pending balance.
+    pub pending_balance: u64,
     /// Length of the transactions history.
     pub history_len: u64,
     /// `Hash` of the transactions history.
@@ -42,6 +42,7 @@ impl Wallet {
         &pub_key: &PublicKey,
         name: &str,
         balance: u64,
+        pending_balance: u64,
         history_len: u64,
         &history_hash: &Hash,
     ) -> Self {
@@ -49,9 +50,21 @@ impl Wallet {
             pub_key,
             name: name.to_owned(),
             balance,
+            pending_balance,
             history_len,
             history_hash,
         }
+    }
+    /// Returns a copy of this wallet with updated pending balance.
+    pub fn set_pending_balance(self, pending_balance: u64, history_hash: &Hash) -> Self {
+        Self::new(
+            &self.pub_key,
+            &self.name,
+            self.balance,
+            pending_balance,
+            self.history_len + 1,
+            history_hash,
+        )
     }
     /// Returns a copy of this wallet with updated balance.
     pub fn set_balance(self, balance: u64, history_hash: &Hash) -> Self {
@@ -59,6 +72,7 @@ impl Wallet {
             &self.pub_key,
             &self.name,
             balance,
+            self.pending_balance,
             self.history_len + 1,
             history_hash,
         )
