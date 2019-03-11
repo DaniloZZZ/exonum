@@ -56,14 +56,14 @@ message Wallet {
   uint64 history_len = 5;
   // `Hash` of the transactions history.
   exonum.Hash history_hash = 6;
+  // Pending txs for wallet
+  repeated exonum.Hash pending_txs = 7;
 }
 
 // Transfer multisig
 message TransferMultisig{
   // `PublicKey` of receiver's wallet.
   exonum.PublicKey to = 1;
-  // `PublicKey` of sender's wallet.
-  //exonum.PublicKey from = 2;
   // Amount of currency to transfer.
   uint64 amount = 3;
   // approvers

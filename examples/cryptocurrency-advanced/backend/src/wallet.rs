@@ -34,6 +34,8 @@ pub struct Wallet {
     pub history_len: u64,
     /// `Hash` of the transactions history.
     pub history_hash: Hash,
+    /// Pending txs for wallet
+    pub pending_txs: Vec<Hash>,
 }
 
 impl Wallet {
@@ -45,6 +47,7 @@ impl Wallet {
         pending_balance: u64,
         history_len: u64,
         &history_hash: &Hash,
+        pending_txs: Vec<Hash>,
     ) -> Self {
         Self {
             pub_key,
@@ -53,6 +56,7 @@ impl Wallet {
             pending_balance,
             history_len,
             history_hash,
+            pending_txs
         }
     }
     /// Returns a copy of this wallet with updated pending balance.
@@ -64,6 +68,7 @@ impl Wallet {
             pending_balance,
             self.history_len + 1,
             history_hash,
+            self.pending_txs
         )
     }
     /// Returns a copy of this wallet with updated balance.
@@ -75,6 +80,7 @@ impl Wallet {
             self.pending_balance,
             self.history_len + 1,
             history_hash,
+            self.pending_txs
         )
     }
 }

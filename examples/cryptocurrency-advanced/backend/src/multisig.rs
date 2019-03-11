@@ -77,8 +77,8 @@ impl Transaction for TransferMultisig {
             Err(Error::InsufficientCurrencyAmount)?
         }
 
-        schema.decrease_wallet_pending_balance(sender, amount, &hash);
-        schema.increase_wallet_pending_balance(receiver, amount, &hash);
+        schema.add_pending_tx(sender, -(amount as i64), &hash);
+        schema.add_pending_tx(receiver, amount as i64, &hash);
         // Put the tx into db
         println!("putting multisig to db");
         schema.multisigs_mut().put(&hash, self.clone());
@@ -132,8 +132,8 @@ impl Transaction for TxSign {
                     println!("signs of {:?}: {:?}",self.tx_hash, signs);
                     if approvers.len()>=(signs.len()-1){
                         println!("all approvers signed, transferring the money");
-                        schema.decrease_wallet_real_balance(sender, msig.amount, &self.tx_hash);
-                        schema.increase_wallet_real_balance(receiver, msig.amount, &self.tx_hash);
+                        schema.resolve_pending_tx(sender, -(msig.amount as i64), &self.tx_hash);
+                        schema.resolve_pending_tx(receiver, msig.amount as i64, &self.tx_hash);
                     }
                 }
                 else{
