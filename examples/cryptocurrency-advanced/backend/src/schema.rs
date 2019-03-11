@@ -106,10 +106,10 @@ impl<'a> Schema<&'a mut Fork> {
         ProofListIndex::new_in_family("cryptocurrency.wallet_history", public_key, &mut self.view)
     }
 
-    /// Increase balance of the wallet and append new record to its history.
+    /// Decrease balance of the wallet and append new record to its history.
     ///
     /// Panics if there is no wallet with given public key.
-    pub fn increase_wallet_balance(&mut self, wallet: Wallet, amount: u64, transaction: &Hash) {
+    pub fn increase_wallet_real_balance(&mut self, wallet: Wallet, amount: u64, transaction: &Hash) {
         let wallet = {
             let mut history = self.wallet_history_mut(&wallet.pub_key);
             history.push(*transaction);
@@ -123,13 +123,73 @@ impl<'a> Schema<&'a mut Fork> {
     /// Decrease balance of the wallet and append new record to its history.
     ///
     /// Panics if there is no wallet with given public key.
-    pub fn decrease_wallet_balance(&mut self, wallet: Wallet, amount: u64, transaction: &Hash) {
+    pub fn decrease_wallet_real_balance(&mut self, wallet: Wallet, amount: u64, transaction: &Hash) {
         let wallet = {
             let mut history = self.wallet_history_mut(&wallet.pub_key);
             history.push(*transaction);
             let history_hash = history.merkle_root();
             let balance = wallet.balance;
             wallet.set_balance(balance - amount, &history_hash)
+        };
+        self.wallets_mut().put(&wallet.pub_key, wallet.clone());
+    }
+    /// Increase pending balance of the wallet and append new record to its history.
+    ///
+    /// Panics if there is no wallet with given public key.
+    pub fn increase_wallet_pending_balance(&mut self, wallet: Wallet, amount: u64, transaction: &Hash) {
+        let wallet = {
+            let mut history = self.wallet_history_mut(&wallet.pub_key);
+            history.push(*transaction);
+            let history_hash = history.merkle_root();
+            let balance = wallet.pending_balance;
+            wallet.set_pending_balance(balance + amount, &history_hash)
+        };
+        self.wallets_mut().put(&wallet.pub_key, wallet.clone());
+    }
+
+    /// Decrease pending and real balance of the wallet and append new record to its history.
+    ///
+    /// Panics if there is no wallet with given public key.
+    pub fn decrease_wallet_pending_balance(&mut self, wallet: Wallet, amount: u64, transaction: &Hash) {
+        let wallet = {
+            let mut history = self.wallet_history_mut(&wallet.pub_key);
+            history.push(*transaction);
+            let history_hash = history.merkle_root();
+            let balance = wallet.pending_balance;
+            wallet.set_pending_balance(balance - amount, &history_hash)
+        };
+        self.wallets_mut().put(&wallet.pub_key, wallet.clone());
+    }
+
+    /// Increase balance of the wallet and append new record to its history.
+    ///
+    /// Panics if there is no wallet with given public key.
+    pub fn increase_wallet_balance(&mut self, wallet: Wallet, amount: u64, transaction: &Hash) {
+        println!("increase balance of {:?}",wallet);
+        let wallet = {
+            let mut history = self.wallet_history_mut(&wallet.pub_key);
+            history.push(*transaction);
+            let history_hash = history.merkle_root();
+            let balance = wallet.balance;
+            let pending_balance = wallet.pending_balance;
+            let wallet = wallet.set_balance(balance + amount, &history_hash);
+            wallet.set_pending_balance(pending_balance + amount, &history_hash)
+        };
+        self.wallets_mut().put(&wallet.pub_key, wallet.clone());
+    }
+
+    /// Decrease pending and real balance of the wallet and append new record to its history.
+    ///
+    /// Panics if there is no wallet with given public key.
+    pub fn decrease_wallet_balance(&mut self, wallet: Wallet, amount: u64, transaction: &Hash) {
+        let wallet = {
+            let mut history = self.wallet_history_mut(&wallet.pub_key);
+            history.push(*transaction);
+            let history_hash = history.merkle_root();
+            let balance = wallet.balance;
+            let pending_balance = wallet.pending_balance;
+            let wallet = wallet.set_balance(balance - amount, &history_hash);
+            wallet.set_pending_balance(pending_balance - amount, &history_hash)
         };
         self.wallets_mut().put(&wallet.pub_key, wallet.clone());
     }
@@ -152,7 +212,7 @@ impl<'a> Schema<&'a mut Fork> {
             let mut history = self.wallet_history_mut(key);
             history.push(*transaction);
             let history_hash = history.merkle_root();
-            Wallet::new(key, name, INITIAL_BALANCE,0, history.len(), &history_hash)
+            Wallet::new(key, name, INITIAL_BALANCE, INITIAL_BALANCE, history.len(), &history_hash)
         };
         self.wallets_mut().put(key, wallet);
     }

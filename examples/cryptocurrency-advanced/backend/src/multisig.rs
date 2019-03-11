@@ -77,10 +77,10 @@ impl Transaction for TransferMultisig {
             Err(Error::InsufficientCurrencyAmount)?
         }
 
-        //schema.decrease_wallet_balance(sender, amount, &hash);
-        //schema.increase_wallet_balance(receiver, amount, &hash);
+        schema.decrease_wallet_pending_balance(sender, amount, &hash);
+        schema.increase_wallet_pending_balance(receiver, amount, &hash);
         // Put the tx into db
-        println!("putting to db");
+        println!("putting multisig to db");
         schema.multisigs_mut().put(&hash, self.clone());
         println!("putted to db");
 
@@ -90,9 +90,9 @@ impl Transaction for TransferMultisig {
 
 impl Transaction for TxSign {
     fn execute(&self, mut context: TransactionContext) -> ExecutionResult {
-        println!("excec with for hash {}",self.tx_hash);
+        println!("creating txsign for multisig with hash {}",self.tx_hash);
         let signer = context.author();
-        println!("excec from {}",signer);
+        println!("signature provider: {}",signer);
 
         let sender_key: PublicKey;
         let fork  = context.fork();
@@ -131,16 +131,16 @@ impl Transaction for TxSign {
                     let signs = schema.multi_sigs_of_tx(self.tx_hash);
                     println!("signs of {:?}: {:?}",self.tx_hash, signs);
                     if approvers.len()>=(signs.len()-1){
-                        println!("all approvers signed, making the tx");
-                        schema.decrease_wallet_balance(sender, msig.amount, &self.tx_hash);
-                        schema.increase_wallet_balance(receiver, msig.amount, &self.tx_hash);
+                        println!("all approvers signed, transferring the money");
+                        schema.decrease_wallet_real_balance(sender, msig.amount, &self.tx_hash);
+                        schema.increase_wallet_real_balance(receiver, msig.amount, &self.tx_hash);
                     }
                 }
                 else{
                     Err(Error::MultisigWrongApprover)?
                 }
 
-                println!("create txsign");
+                println!("Saving signature");
                 schema.create_txsign(self.tx_hash,signer);
                 let signs = schema.multi_sigs_of_tx(self.tx_hash);
                 println!("signs {:?}",signs);
